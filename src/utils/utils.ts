@@ -19,7 +19,7 @@ export const findTreeFirst = (arr: any = []) => {
     if (item?.routes?.length > 0) {
       path = findTreeFirst(item?.routes);
     } else {
-      path = item.path;
+      path = item;
     }
     break;
   }

@@ -2,20 +2,27 @@ import { showForm } from '@/services/form';
 import ReactRenderer from '@alilc/lowcode-react-renderer';
 import type { RouteContextType } from '@ant-design/pro-components';
 import { PageContainer, RouteContext } from '@ant-design/pro-components';
-import { Button } from 'antd';
+import { Button, Spin } from 'antd';
 import get from 'lodash/get';
 import * as assets from 'antd-materials/src/index';
 import { useEffect, useState } from 'react';
 import { createAxiosFetchHandler } from '@/utils/request';
-import { history } from 'umi';
+import { history, useModel } from 'umi';
 
 const components: any = {};
 
 const Form = (props: any) => {
+  const { initialState } = useModel('@@initialState');
+
   const { params = {} } = props.match;
-  const { query = {} } = props.location;
   const { siteId = '', id = '' } = params;
-  const { design } = query;
+  const { mainPage } = initialState?.site;
+
+  if (!id && mainPage) {
+    history.push(mainPage);
+  }
+
+  const { design } = initialState;
 
   const [formData, setFormData] = useState<any>({});
   const [loading, setLoading] = useState(false);
@@ -68,60 +75,71 @@ const Form = (props: any) => {
   // };
 
   return (
-    <RouteContext.Consumer>
-      {(value: RouteContextType) => {
-        if (pageSchema) {
-          const { matchMenus } = value;
-          if (!pageSchema.state) {
-            pageSchema.state = {};
+    <Spin spinning={loading}>
+      <RouteContext.Consumer>
+        {(value: RouteContextType) => {
+          if (pageSchema) {
+            const { matchMenus } = value;
+            if (!pageSchema.state) {
+              pageSchema.state = {};
+            }
+            pageSchema.state.breadcrumb = matchMenus;
+            pageSchema.state.name = formData?.name;
           }
-          pageSchema.state.breadcrumb = matchMenus;
-          pageSchema.state.name = formData?.name;
-        }
 
-        const children = (
-          <ReactRenderer
-            schema={pageSchema}
-            components={components}
-            appHelper={{
-              utils: {
-                history,
-                query: props?.location?.query || {},
-                params: props?.match?.params || {},
-              },
-              constants: {
-                siteId,
-              },
-              requestHandlersMap: {
-                fetch: createAxiosFetchHandler(siteId),
-              },
-            }}
-          />
-        );
-
-        if (design !== undefined) {
-          // 用户的标题
-          return (
-            <PageContainer
-              className={styles.pageContainer}
-              header={{
-                className: styles.header,
-                title: '测试',
+          const children = (
+            <ReactRenderer
+              schema={pageSchema}
+              components={components}
+              appHelper={{
+                utils: {
+                  history,
+                  query: props?.location?.query || {},
+                  params: props?.match?.params || {},
+                },
+                constants: {
+                  siteId,
+                },
+                requestHandlersMap: {
+                  fetch: createAxiosFetchHandler(siteId),
+                },
               }}
-              loading={loading}
-              extra={[
-                <Button type="primary" key="design">
-                  页面设计
-                </Button>,
-              ]}
-            >
-              {children}
-            </PageContainer>
+            />
           );
-        }
-        return children;
-      }}
-    </RouteContext.Consumer>
+
+          if (design) {
+            // 用户的标题
+            return (
+              <PageContainer
+                header={{
+                  title: formData.name,
+                }}
+                extra={[
+                  <Button
+                    onClick={() => {
+                      window.open(
+                        `${
+                          (window as any).config.editor
+                        }/?scene=console&siteId=${siteId}&pageId=${id}${
+                          (window as any).config.debug ? '&debug' : ''
+                        }`,
+                      );
+                    }}
+                    type="primary"
+                    key="design"
+                  >
+                    页面设计
+                  </Button>,
+                ]}
+              >
+                {children}
+              </PageContainer>
+            );
+          }
+          return children;
+        }}
+      </RouteContext.Consumer>
+    </Spin>
   );
 };
 export default Form;

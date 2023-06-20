@@ -5,6 +5,7 @@ import type { ItemType } from 'antd/lib/menu/hooks/useItems';
 import type { MenuInfo } from 'rc-menu/lib/interface';
 import React, { useCallback } from 'react';
 import { history, useModel } from 'umi';
+import { stringify } from 'querystring';
 import HeaderDropdown from '../HeaderDropdown';
 import styles from './index.less';
 
@@ -15,7 +16,7 @@ export type GlobalHeaderRightProps = {
 /**
  * 退出登录，并且将当前的 url 保存
  */
-/* const loginOut = async () => {
+const loginOut = async () => {
   // await outLogin();
   const { query = {}, search, pathname } = history.location;
   const { redirect } = query;
@@ -28,7 +29,7 @@ export type GlobalHeaderRightProps = {
       }),
     });
   }
-}; */
+};
 
 const AvatarDropdown: React.FC<GlobalHeaderRightProps> = ({ menu }) => {
   const { initialState, setInitialState } = useModel('@@initialState');
@@ -39,7 +40,7 @@ const AvatarDropdown: React.FC<GlobalHeaderRightProps> = ({ menu }) => {
       if (key === 'logout') {
         setInitialState((s) => ({ ...s, currentUser: undefined }));
         localStorage.removeItem('token');
-        // loginOut();
+        loginOut();
         return;
       }
       history.push(`/account/${key}`);
@@ -65,7 +66,7 @@ const AvatarDropdown: React.FC<GlobalHeaderRightProps> = ({ menu }) => {
 
   const { currentUser } = initialState;
 
-  if (!currentUser || !currentUser.userLogin) {
+  if (!currentUser || !currentUser.id) {
     return loading;
   }
 
@@ -102,7 +103,7 @@ const AvatarDropdown: React.FC<GlobalHeaderRightProps> = ({ menu }) => {
     <HeaderDropdown overlay={menuHeaderDropdown}>
       <span className={`${styles.action} ${styles.account}`}>
         <Avatar size="small" className={styles.avatar} src={currentUser.avatar} alt="avatar" />
-        <span className={`${styles.name} anticon`}>{currentUser.userLogin}</span>
+        <span className={`${styles.name} anticon`}>{currentUser.mobile}</span>
       </span>
     </HeaderDropdown>
   );

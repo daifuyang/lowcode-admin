@@ -1,11 +1,11 @@
 ﻿export default [
   {
-    path: '/admin',
+    path: '/user',
     layout: false,
     routes: [
       {
         name: 'login',
-        path: '/admin/login',
+        path: '/user/login',
         component: './admin/Login',
       },
       {

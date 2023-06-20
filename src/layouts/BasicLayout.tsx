@@ -15,6 +15,8 @@ import { useImmer } from 'use-immer';
 import SaveForm from './components/saveFrom';
 import { history } from 'umi';
 import styles from './index.less';
+import { findTreeFirst } from '@/utils/utils';
+import qs from 'qs';
 
 function BasicLayout(props: any) {
   const { initialState, setInitialState } = useModel<any>('@@initialState');
@@ -25,10 +27,12 @@ function BasicLayout(props: any) {
   const { params = {} } = props.match;
   const { pathname = '' } = props.location;
   const { siteId = '' } = params;
+  const { design } = initialState;
 
   const saveRef = useRef<any>();
 
   const [state, setState] = useImmer({
+    loading: false,
     routes: [],
   });
 
@@ -44,13 +48,22 @@ function BasicLayout(props: any) {
   };
 
   const fetchData = async () => {
+    setState((draft: any) => {
+      draft.loading = true;
+    });
+
     const res: any = await getAdminMenus();
     if (res.code === 1) {
       const routes = recursion(res.data);
       setState((draft: any) => {
         draft.routes = routes;
       });
+      const mainPage: any = findTreeFirst(res.data);
+      setInitialState((s: any) => ({ ...s, site: { ...s.site, mainPage: mainPage.path } }));
     }
+    setState((draft: any) => {
+      draft.loading = false;
+    });
   };
 
   const onFinish = async (values: any) => {
@@ -109,6 +122,7 @@ function BasicLayout(props: any) {
     <>
       <SaveForm ref={saveRef} onFinish={onFinish} />
       <ProLayout
+        loading={state.loading}
         className={styles.zeroLayout}
         headerRender={false}
         disableContentMargin={true}
@@ -122,6 +136,7 @@ function BasicLayout(props: any) {
           routes: state.routes,
         }}
         menuExtraRender={({ collapsed }) =>
+          design &&
           !collapsed && (
             <Space align="center">
               <Input
@@ -155,7 +170,11 @@ function BasicLayout(props: any) {
         }
         menuHeaderRender={false}
         menuItemRender={(itemProps) => {
-          const path = itemProps?.redirect ? itemProps.redirect : itemProps.path;
+          let path = itemProps?.redirect ? itemProps.redirect : itemProps.path;
+          const qParams = path.slice(1);
+          const parsedParams = qs.parse(qParams);
+          if (design && parsedParams.design === undefined) path += '?design';
+
           return <Link to={path}>{itemProps.name}</Link>;
         }}
       >

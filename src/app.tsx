@@ -10,8 +10,6 @@ import { currentUser as queryCurrentUser } from './services/user';
 import { getSiteId } from './utils/utils';
 import { notification } from 'antd';
 
-import * as antd from 'antd/es';
-
 const codeMessage = {
   200: '服务器成功返回请求的数据。',
   201: '新建或修改数据成功。',
@@ -70,6 +68,7 @@ export async function getInitialState(): Promise<{
   site?: any;
   currentUser?: any;
   loading?: boolean;
+  design?: boolean;
   fetchUserInfo?: () => Promise<any | undefined>;
 }> {
   const fetchUserInfo = async () => {
@@ -81,6 +80,13 @@ export async function getInitialState(): Promise<{
     }
     return undefined;
   };
+
+  const { query = {} } = history.location;
+  let design = false;
+  if (query.design !== undefined) {
+    design = true;
+  }
+
   // 如果不是登录页面，执行
   if (loginPath.indexOf(history.location.pathname) === -1) {
     const currentUser = await fetchUserInfo();
@@ -88,11 +94,13 @@ export async function getInitialState(): Promise<{
       fetchUserInfo,
       currentUser,
       settings: defaultSettings,
+      design,
     };
   }
   return {
     fetchUserInfo,
     settings: defaultSettings,
+    design,
   };
 }
 
@@ -106,8 +114,12 @@ export const layout: RunTimeLayoutConfig = ({ initialState, setInitialState }) =
     },
     onMenuHeaderClick: () => {
       const siteId = initialState?.site?.siteId || '';
-      const href = siteId ? `/${siteId}/settings/websites` : '/';
-      history.push(href);
+      let href = siteId ? `/${siteId}/` : '/';
+      const { mainPage } = initialState?.site;
+      if (mainPage) {
+        href = mainPage;
+      }
+      history.push(`${href}${initialState?.design ? '?design' : ''}`);
     },
     // footerRender: () => <Footer />,
     onPageChange: () => {
@@ -242,7 +254,3 @@ export const request: RequestConfig = {
     return response;
   },
 };
-
-(window as any).message = antd.message;
-(window as any).Modal = antd.Modal;
-(window as any).notification = antd.notification;
