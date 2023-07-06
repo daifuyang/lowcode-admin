@@ -16,6 +16,14 @@ or
 yarn
 ```
 
+## to do list
+
+2023/06/26
+
+图片资源管理  
+上传图片设置器  
+系统设置
+
 ## Provided Scripts
 
 Ant Design Pro provides some useful script to help you quick start and build with web project, code style check and test.

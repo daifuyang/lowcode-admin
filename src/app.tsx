@@ -7,8 +7,13 @@ import type { RequestConfig, RunTimeLayoutConfig } from 'umi';
 import { history, Link } from 'umi';
 import defaultSettings from '../config/defaultSettings';
 import { currentUser as queryCurrentUser } from './services/user';
-import { getSiteId } from './utils/utils';
+import { findTreeFirst, getLoginPath, getSiteId } from './utils/utils';
 import { notification } from 'antd';
+
+import * as antd from 'antd/es';
+import { getAdminMenus } from './services/form';
+import qs from 'qs';
+import { upload } from './services/upload';
 
 const codeMessage = {
   200: '服务器成功返回请求的数据。',
@@ -29,7 +34,16 @@ const codeMessage = {
 };
 
 const isDev = process.env.NODE_ENV === 'development';
-const loginPath = ['/user/login', '/admin/login'];
+
+/* const siteId = getSiteId();
+
+if (siteId) {
+  loginPath = `/${siteId}/login`;
+} */
+
+// 如果不是登录页面，执行
+// const patt = /\/\d+\/login*/g;
+// const isLogin = patt.test(location.pathname) || loginPath == location.pathname;
 
 const Icon = (props: any) => {
   let { icon } = props;
@@ -41,18 +55,30 @@ const Icon = (props: any) => {
   );
 };
 
-const loopMenuItem: any = (
-  menus: MenuDataItem[] | { icon: any; children: any }[],
-  siteId: string,
-) => {
+const loopMenuItem: any = (menus: MenuDataItem[] | { icon: any; children: any }[]) => {
+  const siteId = getSiteId();
   return menus.map(({ icon = '', children, ...item }: any) => {
     item.path = item.path.replaceAll(':siteId', siteId);
     return {
       ...item,
       icon: <Icon icon={icon} />,
-      children: children && loopMenuItem(children, siteId),
+      children: children && loopMenuItem(children),
     };
   });
+};
+
+const recursion: any = (arr: []) => {
+  const siteId = getSiteId();
+  arr.forEach((item: any) => {
+    item.path = `/${siteId}${item.path}`;
+    if (item?.redirect) {
+      item.redirect = `/${siteId}${item.redirect}`;
+    }
+    if (item.routes) {
+      recursion(item.routes);
+    }
+  });
+  return arr;
 };
 
 /** 获取用户信息比较慢的时候会展示一个 loading */
@@ -65,18 +91,28 @@ export const initialStateConfig = {
  * */
 export async function getInitialState(): Promise<{
   settings?: Partial<LayoutSettings>;
-  site?: any;
+  site: {
+    siteInfo?: any;
+    siteId?: string;
+    mainPage?: string;
+  };
   currentUser?: any;
   loading?: boolean;
   design?: boolean;
+  loginPath?: string;
   fetchUserInfo?: () => Promise<any | undefined>;
 }> {
   const fetchUserInfo = async () => {
+    const siteId = getSiteId();
     try {
       const msg = await queryCurrentUser();
+      if (msg.code != 1) {
+        history.push(siteId ? `/${siteId}/login` : '/user/login');
+        return;
+      }
       return msg.data;
     } catch (error) {
-      history.push(loginPath[0]);
+      history.push(siteId ? `/${siteId}/login` : '/user/login');
     }
     return undefined;
   };
@@ -87,19 +123,27 @@ export async function getInitialState(): Promise<{
     design = true;
   }
 
-  // 如果不是登录页面，执行
-  if (loginPath.indexOf(history.location.pathname) === -1) {
+  const siteId = getSiteId();
+
+  /*  if (!isLogin) {
     const currentUser = await fetchUserInfo();
     return {
       fetchUserInfo,
       currentUser,
       settings: defaultSettings,
+      site: {
+        siteId,
+      },
       design,
+      loginPath,
     };
-  }
+  } */
   return {
     fetchUserInfo,
     settings: defaultSettings,
+    site: {
+      siteId,
+    },
     design,
   };
 }
@@ -113,9 +157,9 @@ export const layout: RunTimeLayoutConfig = ({ initialState, setInitialState }) =
       content: initialState?.currentUser?.name,
     },
     onMenuHeaderClick: () => {
-      const siteId = initialState?.site?.siteId || '';
+      const siteId = getSiteId();
       let href = siteId ? `/${siteId}/` : '/';
-      const { mainPage } = initialState?.site;
+      const { mainPage } = initialState?.site || {};
       if (mainPage) {
         href = mainPage;
       }
@@ -123,12 +167,10 @@ export const layout: RunTimeLayoutConfig = ({ initialState, setInitialState }) =
     },
     // footerRender: () => <Footer />,
     onPageChange: () => {
-      const { location } = history;
       // 如果没有登录，重定向到 login
-      const loginIndex = loginPath.indexOf(location.pathname);
-      if (!initialState?.currentUser && loginIndex === -1) {
-        history.push(loginPath[0]);
-      }
+      /* if (!initialState?.currentUser && !isLogin) {
+        history.push(loginPath);
+      } */
     },
     links: isDev
       ? [
@@ -168,32 +210,53 @@ export const layout: RunTimeLayoutConfig = ({ initialState, setInitialState }) =
       );
     },
     menu: {
+      locale: false,
       params: {
         userId: initialState?.currentUser?.id,
         siteId: initialState?.site?.siteId,
       },
       request: async (params: any = {}) => {
         // initialState.currentUser 中包含了所有用户信息
-        const { userId, siteId } = params;
-        let menu = [
-          {
-            name: 'workspace',
-            path: '/workspace',
-          },
-        ];
-        if (userId && siteId && history.location.pathname !== '/workspace') {
-          menu = [
-            {
+
+        /*
+        {
               name: 'site',
               path: '/:siteId/admin/form',
             },
-          ];
+        */
+        let menu = [
+          {
+            name: '工作台',
+            path: '/workspace',
+          },
+        ];
+        const { userId, siteId } = params;
+        if (userId && siteId && location.pathname !== '/workspace') {
+          const res: any = await getAdminMenus();
+          if (res.code === 1) {
+            menu = recursion(res.data);
+            const mainPage: any = findTreeFirst(res.data);
+            setInitialState((s: any) => ({ ...s, site: { ...s.site, mainPage: mainPage.path } }));
+          }
         }
         return menu;
       },
     },
+    menuItemRender: (itemProps) => {
+      let path = itemProps?.redirect ? itemProps.redirect : itemProps.path;
+      const { pathname } = location;
+      if (pathname == path) {
+        return itemProps.name;
+      }
+
+      const qParams = path.slice(1);
+      const parsedParams = qs.parse(qParams);
+      if (initialState?.design && parsedParams.design === undefined) path += '?design';
+
+      return <Link to={path}>{itemProps.name}</Link>;
+    },
     menuDataRender: (menuData: MenuDataItem[]) => {
-      return loopMenuItem(menuData, initialState?.site?.siteId);
+      return loopMenuItem(menuData);
     },
     ...initialState?.settings,
   };
@@ -208,6 +271,7 @@ const authHeaderInterceptor = (url: string, options: RequestConfig) => {
         Authorization: `Bearer ${token}`,
       };
     } else {
+      const loginPath = getLoginPath();
       history.push(loginPath);
     }
   }
@@ -218,7 +282,11 @@ const authHeaderInterceptor = (url: string, options: RequestConfig) => {
 };
 
 const siteInterceptor = (url: string, options: RequestConfig) => {
-  const siteId = getSiteId();
+  let siteId: any = getSiteId();
+  if (!siteId) {
+    const { query = {} } = history.location;
+    siteId = query.siteId;
+  }
   if (siteId) {
     (options as any).params.siteId = siteId;
   }
@@ -237,7 +305,8 @@ export const request: RequestConfig = {
       const { status, url } = response;
 
       if (status == 401) {
-        history.push('/user/login');
+        const loginPath = getLoginPath();
+        history.push(loginPath);
       }
 
       notification.error({
@@ -254,3 +323,8 @@ export const request: RequestConfig = {
     return response;
   },
 };
+
+(window as any).message = antd.message;
+(window as any).Modal = antd.Modal;
+(window as any).notification = antd.notification;
+(window as any).uploadApi = upload;

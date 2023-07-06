@@ -4,7 +4,7 @@ import type { RequestOptionsInit } from 'umi-request';
 
 export const request = (
   url: string,
-  options: RequestOptionsInit & { skipErrorHandler?: boolean | undefined },
+  options: RequestOptionsInit & { skipErrorHandler?: boolean | undefined } = {},
 ) => {
   return umiRequest(url, options);
 };

@@ -1,4 +1,4 @@
-import { authRequest } from '@/utils/request';
+import { authRequest, request } from '@/utils/request';
 
 export function getAdminMenus() {
   return authRequest('/api/v1/lowcode/admin/form');
@@ -12,7 +12,7 @@ export function addForm(data: any = {}) {
 }
 
 export function showForm(formId: string) {
-  return authRequest(`/api/v1/lowcode/admin/form/${formId}`);
+  return request(`/api/v1/lowcode/app/form/${formId}`);
 }
 
 export function editForm(data: any = {}, id: string) {

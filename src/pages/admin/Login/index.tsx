@@ -126,7 +126,7 @@ const Login: React.FC = () => {
           {type === 'account' && (
             <>
               <ProFormText
-                name="mobile"
+                name="userLogin"
                 fieldProps={{
                   size: 'large',
                   prefix: <MobileOutlined className={styles.prefixIcon} />,

@@ -28,11 +28,27 @@ export const findTreeFirst = (arr: any = []) => {
 
 export const getSiteId = () => {
   const { pathname } = location;
-  const patten = new RegExp('/[0-9]+');
-  const res = patten.exec(pathname);
+  const regex = /\/(\d+)/;
+  const match = pathname.match(regex);
   let siteId = '';
-  if (res?.length > 0) {
-    siteId = res[0]?.replaceAll('/', '');
+  if (match) {
+    siteId = match[1];
   }
   return siteId;
+};
+
+export const getLoginPath = () => {
+  const siteId = getSiteId();
+  return siteId ? `/${siteId}/login` : '/user/login';
+};
+
+// 打开设置器
+export const openDesign = (id: string) => {
+  const siteId = getSiteId();
+  const token = localStorage.getItem('token');
+  window.open(
+    `${(window as any).config.editor}/?scene=console&siteId=${siteId}&pageId=${id}${
+      token ? '&token=' + token : ''
+    }${(window as any).config.debug ? '&debug' : ''}`,
+  );
 };

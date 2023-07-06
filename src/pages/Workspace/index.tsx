@@ -23,7 +23,7 @@ import styles from './styles.less';
 
 const { Meta } = Card;
 
-import { history } from 'umi';
+import { history, useModel } from 'umi';
 import SaveForm from './SaveForm';
 
 const Worksace = () => {
@@ -40,13 +40,34 @@ const Worksace = () => {
 
   const [form] = Form.useForm<any>();
 
+  const { initialState, setInitialState } = useModel('@@initialState');
+
   const fetchData = async () => {
+    const user = await initialState?.fetchUserInfo?.();
     const res = await getSites();
+    if (res.code != 1) {
+      message.error(res.msg);
+      return;
+    }
+
     setState((draft: any) => {
       draft.current = res.data.current;
       draft.pageSize = res.data.pageSize;
       draft.total = res.data.total;
       draft.data = res.data;
+    });
+    setInitialState({
+      ...initialState,
+      currentUser: user,
+      site: {
+        siteId: '',
+        mainPage: '',
+      },
+      settings: {
+        ...initialState?.settings,
+        layout: 'top',
+        navTheme: 'dark',
+      },
     });
   };
 
@@ -118,90 +139,92 @@ const Worksace = () => {
 
       <div className={styles.main}>
         <div className={styles.container}>
-          <Row gutter={[24, 24]}>
-            <Col xs={24} md={12} lg={6}>
-              <div className={styles.card}>
-                <Button
-                  onClick={() => {
-                    setState((draft: any) => {
-                      draft.saveModal.title = '新增应用';
-                      draft.saveModal.visible = true;
-                    });
-                  }}
-                  type="dashed"
-                  className={styles.newButton}
-                >
-                  <PlusOutlined /> 新增应用
-                </Button>
-              </div>
-            </Col>
-            {state.data?.data?.map((item: any, i: number) => {
-              return (
-                <Col xs={24} md={12} lg={6} key={item.siteId}>
-                  <Card
+          <div className={styles.cardList}>
+            <Row gutter={[24, 24]}>
+              <Col xs={24} md={12} lg={6}>
+                <div className={styles.card}>
+                  <Button
                     onClick={() => {
-                      history.push(`/${item.siteId}/admin/form`);
+                      setState((draft: any) => {
+                        draft.saveModal.title = '新增应用';
+                        draft.saveModal.visible = true;
+                      });
                     }}
-                    className={styles.card}
-                    hoverable
-                    actions={[
-                      <Tooltip key="setting" title="编辑">
-                        <EditOutlined
-                          onClick={(e) => {
-                            setState((draft: any) => {
-                              draft.saveModal.title = '编辑应用';
-                              draft.saveModal.visible = true;
-                            });
-                            form.setFieldsValue({ ...item, index: i });
-                            e.stopPropagation();
-                          }}
-                          key="edit"
-                        />
-                      </Tooltip>,
-
-                      <Popconfirm
-                        key="delete"
-                        title="您确定删除改应用吗？"
-                        onConfirm={async (e) => {
-                          e?.stopPropagation();
-                          deleteApp({ ...item, index: i });
-                        }}
-                        onCancel={(e) => {
-                          e?.stopPropagation();
-                        }}
-                        okText="确定"
-                        cancelText="取消"
-                      >
-                        <DeleteOutlined
-                          onClick={(e) => {
-                            e.stopPropagation();
-                          }}
-                        />
-                      </Popconfirm>,
-                    ]}
+                    type="dashed"
+                    className={styles.newButton}
                   >
-                    <Meta
-                      avatar={
-                        <Avatar
-                          size={48}
-                          src="https://gw.alipayobjects.com/zos/rmsportal/sfjbOqnsXXJgNCjCzDBL.png"
-                        />
-                      }
-                      title={item.name}
-                      description={
-                        <>
-                          <Paragraph ellipsis={true} copyable>
-                            {item.siteId}
-                          </Paragraph>
-                          <div className={styles.item}>{item.desc}</div>
-                        </>
-                      }
-                    />
-                  </Card>
-                </Col>
-              );
-            })}
-          </Row>
+                    <PlusOutlined /> 新增应用
+                  </Button>
+                </div>
+              </Col>
+              {state.data?.data?.map((item: any, i: number) => {
+                return (
+                  <Col xs={24} md={12} lg={6} key={item.siteId}>
+                    <Card
+                      onClick={() => {
+                        history.push(`/${item.siteId}/admin/form`);
+                      }}
+                      className={styles.card}
+                      hoverable
+                      actions={[
+                        <Tooltip key="setting" title="编辑">
+                          <EditOutlined
+                            onClick={(e) => {
+                              setState((draft: any) => {
+                                draft.saveModal.title = '编辑应用';
+                                draft.saveModal.visible = true;
+                              });
+                              form.setFieldsValue({ ...item, index: i });
+                              e.stopPropagation();
+                            }}
+                            key="edit"
+                          />
+                        </Tooltip>,
+
+                        <Popconfirm
+                          key="delete"
+                          title="您确定删除改应用吗？"
+                          onConfirm={async (e) => {
+                            e?.stopPropagation();
+                            deleteApp({ ...item, index: i });
+                          }}
+                          onCancel={(e) => {
+                            e?.stopPropagation();
+                          }}
+                          okText="确定"
+                          cancelText="取消"
+                        >
+                          <DeleteOutlined
+                            onClick={(e) => {
+                              e.stopPropagation();
+                            }}
+                          />
+                        </Popconfirm>,
+                      ]}
+                    >
+                      <Meta
+                        avatar={
+                          <Avatar
+                            size={48}
+                            src="https://gw.alipayobjects.com/zos/rmsportal/sfjbOqnsXXJgNCjCzDBL.png"
+                          />
+                        }
+                        title={item.name}
+                        description={
+                          <>
+                            <Paragraph ellipsis={true} copyable>
+                              {item.siteId}
+                            </Paragraph>
+                            <div className={styles.item}>{item.desc}</div>
+                          </>
+                        }
+                      />
+                    </Card>
+                  </Col>
+                );
+              })}
+            </Row>
+          </div>
           <div className={styles.pagination}>
             <Pagination
               onChange={(page, pageSize) => {
@@ -213,6 +236,7 @@ const Worksace = () => {
               current={state.current}
               pageSize={state.pageSize}
               total={state.total}
+              size="small"
             />
           </div>
         </div>

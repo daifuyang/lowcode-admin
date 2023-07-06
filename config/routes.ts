@@ -14,6 +14,16 @@
     ],
   },
   {
+    path: '/404',
+    layout: false,
+    component: './404',
+  },
+  {
+    path: '/:siteId/login',
+    layout: false,
+    component: './ram/Login',
+  },
+  {
     path: '/',
     redirect: '/workspace',
   },
@@ -46,7 +56,7 @@
         component: './admin/Form',
       },
       {
-        component: './404',
+        component: './Layout404',
       },
     ],
   },

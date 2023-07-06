@@ -30,7 +30,7 @@ const SaveForm = (props: any) => {
 
       <ProFormTextArea name="desc" label="站点描述" placeholder="请输入站点描述" />
 
-      <ProFormText
+      {/*       <ProFormText
         name="domain"
         label="域名"
         tooltip="绑定访问的域名"
@@ -42,7 +42,7 @@ const SaveForm = (props: any) => {
         label="数据源配置"
         tooltip="用于自定义配置数据库的连接字符串"
         placeholder="请输入数据源"
-      />
+      /> */}
 
       <ProFormDigit
         label="排序"

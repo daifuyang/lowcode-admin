@@ -1,25 +1,28 @@
-import { addForm, showForm } from '@/services/form';
+import { showForm } from '@/services/form';
 import ReactRenderer from '@alilc/lowcode-react-renderer';
 import type { RouteContextType } from '@ant-design/pro-components';
 import { PageContainer, RouteContext } from '@ant-design/pro-components';
-import { Button, message, Spin } from 'antd';
+import { Button, Spin } from 'antd';
 import get from 'lodash/get';
 import * as assets from 'antd-materials/src/index';
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { createAxiosFetchHandler } from '@/utils/request';
 import { history, useModel } from 'umi';
-import SaveForm from '@/layouts/components/saveFrom';
-import { openDesign } from '@/utils/utils';
 
 const components: any = {};
 
 const Form = (props: any) => {
+  console.log('props', props);
+
   const { initialState } = useModel('@@initialState');
 
   const { params = {} } = props.match;
   const { siteId = '', id = '' } = params;
+  const { mainPage = false } = initialState?.site || {};
 
-  const saveRef = useRef<any>();
+  if (!id && mainPage) {
+    history.push(mainPage);
+  }
 
   const { design } = initialState || {};
 
@@ -35,28 +38,13 @@ const Form = (props: any) => {
     }
   };
 
-  const onFinish = async (values: any) => {
-    const res: any = await addForm(values);
-    if (res.code !== 1) {
-      message.error(res.msg);
-      return;
-    }
-    // 跳转到编辑器编辑页面
-    history.push(`/${siteId}/admin/form/${res.data.id}`);
-    return true;
-  };
-
   useEffect(() => {
-    if (id) {
-      fetchData();
-    }
-    if (!id && initialState?.currentUser && initialState?.site.mainPage) {
-      history.push(initialState?.site.mainPage);
-    }
+    fetchData();
     return () => {
+      console.log('unmount');
       setFormData({ schema: '{}' });
     };
-  }, [id, initialState?.site.mainPage]);
+  }, [id]);
 
   const schema = formData?.schema;
   const schemaObj = JSON.parse(schema || '{}');
@@ -89,30 +77,6 @@ const Form = (props: any) => {
   //   return <Button {...cProps} href={_href} onClick={onClick} />;
   // };
 
-  const children = (
-    <ReactRenderer
-      schema={pageSchema}
-      components={components}
-      appHelper={{
-        utils: {
-          history,
-          openDesign,
-          query: props?.location?.query || {},
-          params: props?.match?.params || {},
-        },
-        constants: {
-          siteId,
-          design,
-          query: props?.location?.query || {},
-          params: props?.match?.params || {},
-        },
-        requestHandlersMap: {
-          fetch: createAxiosFetchHandler(siteId),
-        },
-      }}
-    />
-  );
-
   return (
     <Spin spinning={loading}>
       <RouteContext.Consumer>
@@ -122,13 +86,31 @@ const Form = (props: any) => {
             if (!pageSchema.state) {
               pageSchema.state = {};
             }
-            pageSchema.state.breadcrumb = matchMenus?.map((item) => ({
-              name: item.name,
-              key: item.key,
-              path: item.key,
-            }));
+            pageSchema.state.breadcrumb = matchMenus;
             pageSchema.state.name = formData?.name;
           }
+
+          const children = (
+            <ReactRenderer
+              schema={pageSchema}
+              components={components}
+              appHelper={{
+                utils: {
+                  history,
+                  query: props?.location?.query || {},
+                  params: props?.match?.params || {},
+                },
+                constants: {
+                  siteId,
+                },
+                requestHandlersMap: {
+                  fetch: createAxiosFetchHandler(siteId),
+                },
+              }}
+            />
+          );
+
+          console.log('children', children);
 
           if (design) {
             const token = localStorage.getItem('token');
@@ -142,15 +124,13 @@ const Form = (props: any) => {
                 extra={[
                   <Button
                     onClick={() => {
-                      saveRef.current.open();
-                    }}
-                    key={'add'}
-                  >
-                    新建表单
-                  </Button>,
-                  <Button
-                    onClick={() => {
-                      openDesign(id);
+                      window.open(
+                        `${
+                          (window as any).config.editor
+                        }/?scene=console&siteId=${siteId}&pageId=${id}${
+                          token ? '&token=' + token : ''
+                        }${(window as any).config.debug ? '&debug' : ''}`,
+                      );
                     }}
                     type="primary"
                     key="design"
@@ -159,12 +139,10 @@ const Form = (props: any) => {
                   </Button>,
                 ]}
               >
-                <SaveForm ref={saveRef} onFinish={onFinish} />
                 {children}
               </PageContainer>
             );
           }
-
           return children;
         }}
       </RouteContext.Consumer>

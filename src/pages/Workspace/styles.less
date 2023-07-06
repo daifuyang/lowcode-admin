@@ -21,23 +21,25 @@
     }
   }
 
-  .card {
-    height: 201px;
+  .cardList {
+    .card {
+      height: 201px;
 
-    :global {
-      .ant-card-meta-title > a {
-        display: inline-block;
-        max-width: 100%;
-        color: rgba(0, 0, 0, 0.85);
+      :global {
+        .ant-card-meta-title > a {
+          display: inline-block;
+          max-width: 100%;
+          color: rgba(0, 0, 0, 0.85);
+        }
       }
-    }
 
-    .item {
-      display: -webkit-box;
-      height: 40px;
-      overflow: hidden;
-      -webkit-line-clamp: 2;
-      -webkit-box-orient: vertical;
+      .item {
+        display: -webkit-box;
+        height: 40px;
+        overflow: hidden;
+        -webkit-line-clamp: 2;
+        -webkit-box-orient: vertical;
+      }
     }
   }
 
