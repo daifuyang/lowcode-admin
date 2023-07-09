@@ -1,6 +1,6 @@
 import { authRequest, request } from '@/utils/request';
 
-export function getAdminMenus() {
+export function getForms() {
   return authRequest('/api/v1/lowcode/admin/form');
 }
 

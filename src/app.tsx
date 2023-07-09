@@ -11,7 +11,7 @@ import { findTreeFirst, getLoginPath, getSiteId } from './utils/utils';
 import { notification } from 'antd';
 
 import * as antd from 'antd/es';
-import { getAdminMenus } from './services/form';
+import { getAdminMenus } from './services/adminMenu';
 import qs from 'qs';
 import { upload } from './services/upload';
 
@@ -35,16 +35,6 @@ const codeMessage = {
 
 const isDev = process.env.NODE_ENV === 'development';
 
-/* const siteId = getSiteId();
-
-if (siteId) {
-  loginPath = `/${siteId}/login`;
-} */
-
-// 如果不是登录页面，执行
-// const patt = /\/\d+\/login*/g;
-// const isLogin = patt.test(location.pathname) || loginPath == location.pathname;
-
 const Icon = (props: any) => {
   let { icon } = props;
   if (!icon) icon = 'iconsetting';
@@ -67,14 +57,53 @@ const loopMenuItem: any = (menus: MenuDataItem[] | { icon: any; children: any }[
   });
 };
 
+const getRedirectPath = (routes = []) => {
+  const siteId = getSiteId();
+  for (let i = 0; i < routes.length; i++) {
+    const item: any = routes[i];
+    if (item?.routes?.length > 0) {
+      getRedirectPath(item?.routes);
+      break;
+    } else {
+      if (item.path) return `/${siteId}${item.path}`;
+    }
+  }
+};
+
 const recursion: any = (arr: []) => {
   const siteId = getSiteId();
+  const menus = arr.map((item: any) => {
+    item.redirect = '';
+    const routes = recursion(item.routes);
+    if (item.routes && item.routes?.length > 0) {
+      const redirect = getRedirectPath(item.routes);
+      if (redirect) {
+        item.redirect = redirect;
+      }
+      return {
+        ...item,
+        routes: routes,
+      };
+    }
+    return {
+      ...item,
+      path: `/${siteId}${item.path}`,
+      routes,
+    };
+  });
+
+  return menus;
+
   arr.forEach((item: any) => {
     item.path = `/${siteId}${item.path}`;
-    if (item?.redirect) {
-      item.redirect = `/${siteId}${item.redirect}`;
+    // 处理成最后一集真实的路径
+    const redirect = getRedirectPath(item.routes);
+    if (redirect) {
+      item.OLDiTEM = JSON.parse(JSON.stringify(item));
+      item.redirect = redirect;
     }
-    if (item.routes) {
+
+    if (item.routes?.length > 0) {
       recursion(item.routes);
     }
   });
@@ -94,12 +123,12 @@ export async function getInitialState(): Promise<{
   site: {
     siteInfo?: any;
     siteId?: string;
-    mainPage?: string;
   };
   currentUser?: any;
   loading?: boolean;
   design?: boolean;
   loginPath?: string;
+  menus?: any;
   fetchUserInfo?: () => Promise<any | undefined>;
 }> {
   const fetchUserInfo = async () => {
@@ -122,29 +151,16 @@ export async function getInitialState(): Promise<{
   if (query.design !== undefined) {
     design = true;
   }
-
   const siteId = getSiteId();
-
-  /*  if (!isLogin) {
-    const currentUser = await fetchUserInfo();
-    return {
-      fetchUserInfo,
-      currentUser,
-      settings: defaultSettings,
-      site: {
-        siteId,
-      },
-      design,
-      loginPath,
-    };
-  } */
   return {
+    currentUser: {},
     fetchUserInfo,
     settings: defaultSettings,
     site: {
       siteId,
     },
     design,
+    menus: [],
   };
 }
 
@@ -157,20 +173,67 @@ export const layout: RunTimeLayoutConfig = ({ initialState, setInitialState }) =
       content: initialState?.currentUser?.name,
     },
     onMenuHeaderClick: () => {
-      const siteId = getSiteId();
+      /* const siteId = getSiteId();
       let href = siteId ? `/${siteId}/` : '/';
       const { mainPage } = initialState?.site || {};
       if (mainPage) {
         href = mainPage;
       }
-      history.push(`${href}${initialState?.design ? '?design' : ''}`);
+      history.push(`${href}${initialState?.design ? '?design' : ''}`); */
     },
     // footerRender: () => <Footer />,
-    onPageChange: () => {
-      // 如果没有登录，重定向到 login
-      /* if (!initialState?.currentUser && !isLogin) {
-        history.push(loginPath);
-      } */
+    onPageChange: async () => {
+      const { pathname } = location;
+      let isLoginPath = false;
+
+      if (pathname === '/user/login') {
+        isLoginPath = true;
+      }
+
+      if (!isLoginPath) {
+        const newState: any = {};
+
+        if (!newState.settings) {
+          newState.settings = {};
+        }
+
+        if (!newState.site) {
+          newState.site = {};
+        }
+
+        newState.settings.layout = 'top';
+        newState.settings.navTheme = 'dark';
+
+        newState.site.siteId = '';
+
+        const { currentUser, fetchUserInfo } = initialState;
+
+        // 如果不存在用于信息，则先同步用户信息
+        if (!currentUser.id || currentUser.site_id) {
+          const userRes = await fetchUserInfo();
+          newState.currentUser = userRes;
+        }
+
+        const siteId = getSiteId();
+
+        if (siteId) {
+          // 如果用户信息没有站点信息或者用户信息站点信息不匹配，则重新更新用户信息
+          if (!currentUser.site_id || currentUser.site_id !== siteId) {
+            const userRes = await fetchUserInfo();
+            newState.currentUser = userRes;
+          }
+
+          // 如果没有站点信息则需要更新站点信息
+          newState.site.siteId = siteId;
+
+          newState.settings.layout = 'mix';
+          newState.settings.navTheme = 'light';
+        }
+        setInitialState((s) => ({
+          ...s,
+          ...newState,
+        }));
+      }
     },
     links: isDev
       ? [
@@ -216,15 +279,7 @@ export const layout: RunTimeLayoutConfig = ({ initialState, setInitialState }) =
         siteId: initialState?.site?.siteId,
       },
       request: async (params: any = {}) => {
-        // initialState.currentUser 中包含了所有用户信息
-
-        /*
-        {
-              name: 'site',
-              path: '/:siteId/admin/form',
-            },
-        */
-        let menu = [
+        let menus = [
           {
             name: '工作台',
             path: '/workspace',
@@ -232,29 +287,47 @@ export const layout: RunTimeLayoutConfig = ({ initialState, setInitialState }) =
         ];
         const { userId, siteId } = params;
         if (userId && siteId && location.pathname !== '/workspace') {
+          menus = [];
           const res: any = await getAdminMenus();
           if (res.code === 1) {
-            menu = recursion(res.data);
-            const mainPage: any = findTreeFirst(res.data);
-            setInitialState((s: any) => ({ ...s, site: { ...s.site, mainPage: mainPage.path } }));
+            menus = recursion(res.data);
+            console.log('menus', menus);
+            // const mainPage: any = findTreeFirst(res.data);
+            setInitialState((s: any) => ({ ...s, menus }));
           }
         }
-        return menu;
+        return menus;
       },
     },
     menuItemRender: (itemProps) => {
+      console.log('itemProps', itemProps);
+
+      const hasIcon = itemProps?.pro_layout_parentKeys?.length === 0 ? itemProps.icon : null;
       let path = itemProps?.redirect ? itemProps.redirect : itemProps.path;
       const { pathname } = location;
       if (pathname == path) {
-        return itemProps.name;
+        return (
+          <span className="ant-pro-menu-item">
+            {hasIcon}
+            <span className="ant-pro-menu-item-title">{itemProps.name}</span>
+          </span>
+        );
       }
 
       const qParams = path.slice(1);
       const parsedParams = qs.parse(qParams);
       if (initialState?.design && parsedParams.design === undefined) path += '?design';
 
-      return <Link to={path}>{itemProps.name}</Link>;
+      return (
+        <Link to={path}>
+          <span className="ant-pro-menu-item">
+            {hasIcon}
+            <span className="ant-pro-menu-item-title">{itemProps.name}</span>
+          </span>
+        </Link>
+      );
     },
+
     menuDataRender: (menuData: MenuDataItem[]) => {
       return loopMenuItem(menuData);
     },

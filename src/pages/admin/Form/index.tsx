@@ -2,22 +2,41 @@ import { addForm, showForm } from '@/services/form';
 import ReactRenderer from '@alilc/lowcode-react-renderer';
 import type { RouteContextType } from '@ant-design/pro-components';
 import { PageContainer, RouteContext } from '@ant-design/pro-components';
-import { Button, message, Spin } from 'antd';
+import { Button, message, Skeleton, Spin } from 'antd';
 import get from 'lodash/get';
 import * as assets from 'antd-materials/src/index';
 import { useEffect, useRef, useState } from 'react';
 import { createAxiosFetchHandler } from '@/utils/request';
 import { history, useModel } from 'umi';
 import SaveForm from '@/layouts/components/saveFrom';
+import NotFound from '@/pages/404';
 import { openDesign } from '@/utils/utils';
+import router from '@/utils/router';
 
 const components: any = {};
 
 const Form = (props: any) => {
   const { initialState } = useModel('@@initialState');
 
-  const { params = {} } = props.match;
-  const { siteId = '', id = '' } = params;
+  const { global, setGlobal } = useModel('useGlobalModel', (model) => ({
+    global: model.global,
+    setGlobal: model.setGlobal,
+  }));
+
+  // 封装操作全局model的方法
+  const model = {
+    global,
+    setGlobal,
+  };
+
+  const { formId, params } = props;
+
+  router.init({
+    query: props?.location?.query,
+    params,
+  });
+
+  const { siteId } = initialState?.site || {};
 
   const saveRef = useRef<any>();
 
@@ -25,14 +44,16 @@ const Form = (props: any) => {
 
   const [formData, setFormData] = useState<any>({});
   const [loading, setLoading] = useState(false);
+  const [init, setInit] = useState(true);
 
   const fetchData = async () => {
     setLoading(true);
-    const res: any = await showForm(id);
+    const res: any = await showForm(formId);
     if (res.code !== 0) {
       setLoading(false);
       setFormData(res.data);
     }
+    setInit(false);
   };
 
   const onFinish = async (values: any) => {
@@ -47,19 +68,17 @@ const Form = (props: any) => {
   };
 
   useEffect(() => {
-    if (id) {
+    if (formId) {
       fetchData();
     }
-    if (!id && initialState?.currentUser && initialState?.site.mainPage) {
-      history.push(initialState?.site.mainPage);
-    }
     return () => {
-      setFormData({ schema: '{}' });
+      setInit(true);
+      setFormData({});
     };
-  }, [id, initialState?.site.mainPage]);
+  }, [formId]);
 
-  const schema = formData?.schema;
-  const schemaObj = JSON.parse(schema || '{}');
+  const schema = formData?.schema || '{}';
+  const schemaObj = JSON.parse(schema);
   const { componentsMap } = schemaObj;
   const pageSchema = schemaObj?.componentsTree?.[0];
 
@@ -68,43 +87,19 @@ const Form = (props: any) => {
     components[item.componentName] = get(assets, name);
   });
 
-  // components['Button'] = (cProps: any) => {
-  //   const { href, target } = cProps;
-  //   let _href = href;
-
-  //   if (target || target === '_self') {
-  //     _href = undefined;
-  //   }
-
-  //   const onClick: any = (e) => {
-  //     if (href && (!target || target === '_self')) {
-  //       history.push(href);
-  //     }
-  //     if (cProps?.onClick) {
-  //       cProps?.onClick(e);
-  //     }
-  //   };
-  //   if (href) {
-  //   }
-  //   return <Button {...cProps} href={_href} onClick={onClick} />;
-  // };
-
   const children = (
     <ReactRenderer
       schema={pageSchema}
       components={components}
       appHelper={{
         utils: {
-          history,
+          router,
+          model,
           openDesign,
-          query: props?.location?.query || {},
-          params: props?.match?.params || {},
         },
         constants: {
           siteId,
           design,
-          query: props?.location?.query || {},
-          params: props?.match?.params || {},
         },
         requestHandlersMap: {
           fetch: createAxiosFetchHandler(siteId),
@@ -113,19 +108,23 @@ const Form = (props: any) => {
     />
   );
 
+  if (!init && (!formId || !formData.schema)) {
+    return <NotFound />;
+  }
+
   return (
     <Spin spinning={loading}>
       <RouteContext.Consumer>
         {(value: RouteContextType) => {
           if (pageSchema) {
-            const { matchMenus } = value;
+            const { breadcrumb } = value;
             if (!pageSchema.state) {
               pageSchema.state = {};
             }
-            pageSchema.state.breadcrumb = matchMenus?.map((item) => ({
-              name: item.name,
-              key: item.key,
-              path: item.key,
+            pageSchema.state.breadcrumb = breadcrumb?.routes?.map((item) => ({
+              name: item.breadcrumbName,
+              key: item.path,
+              path: item.path,
             }));
             pageSchema.state.name = formData?.name;
           }
@@ -150,7 +149,7 @@ const Form = (props: any) => {
                   </Button>,
                   <Button
                     onClick={() => {
-                      openDesign(id);
+                      openDesign(formId);
                     }}
                     type="primary"
                     key="design"

@@ -43,32 +43,26 @@ const Worksace = () => {
   const { initialState, setInitialState } = useModel('@@initialState');
 
   const fetchData = async () => {
-    const user = await initialState?.fetchUserInfo?.();
+    // const user = await initialState?.fetchUserInfo?.();
     const res = await getSites();
     if (res.code != 1) {
       message.error(res.msg);
       return;
     }
-
     setState((draft: any) => {
       draft.current = res.data.current;
       draft.pageSize = res.data.pageSize;
       draft.total = res.data.total;
       draft.data = res.data;
     });
-    setInitialState({
-      ...initialState,
-      currentUser: user,
-      site: {
-        siteId: '',
-        mainPage: '',
-      },
-      settings: {
-        ...initialState?.settings,
-        layout: 'top',
-        navTheme: 'dark',
-      },
-    });
+    // setInitialState({
+    //   ...initialState,
+    //   currentUser: user,
+    //   site: {
+    //     siteId: '',
+    //     mainPage: '',
+    //   },
+    // });
   };
 
   const saveData = async (params: any) => {
@@ -162,7 +156,7 @@ const Worksace = () => {
                   <Col xs={24} md={12} lg={6} key={item.siteId}>
                     <Card
                       onClick={() => {
-                        history.push(`/${item.siteId}/admin/form`);
+                        history.push(`/${item.siteId}/`);
                       }}
                       className={styles.card}
                       hoverable

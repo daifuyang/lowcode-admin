@@ -1,3 +1,9 @@
+# zerocmf 低代码开发中台
+
+## 快速开始
+
+系统默认进入/design/guide 设计向导页面，可在基本配置中修改
+
 # Ant Design Pro
 
 This project is initialized with [Ant Design Pro](https://pro.ant.design). Follow is the quick guide for how to use.

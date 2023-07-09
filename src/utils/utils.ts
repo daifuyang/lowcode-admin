@@ -37,6 +37,20 @@ export const getSiteId = () => {
   return siteId;
 };
 
+export const getSitePath = () => {
+  const siteId = getSiteId();
+  const path = siteId ? `/${siteId}` : '';
+  return path;
+};
+
+export const getFormId = () => {
+  const { pathname } = location;
+  const regex = /\/([^/]+)$/;
+  const match = pathname.match(regex);
+  const extracted = match ? match[1] : null;
+  return extracted;
+};
+
 export const getLoginPath = () => {
   const siteId = getSiteId();
   return siteId ? `/${siteId}/login` : '/user/login';
